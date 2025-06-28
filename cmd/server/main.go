@@ -8,13 +8,15 @@ import (
 	"os"
 	"strings"
 
+	"github.com/MudassirDev/mini-hubspot/internal/database"
+	"github.com/MudassirDev/mini-hubspot/internal/handler"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
 type APIConfig struct {
 	JwtSecret string
-	DB        *sql.DB
+	DB        *database.Queries
 }
 
 func main() {
@@ -44,10 +46,12 @@ func main() {
 		log.Fatal("Database is unreachable:", err)
 	}
 
+	queries := database.New(db)
+
 	// Create config for handlers
-	_ = APIConfig{
+	apiCfg := APIConfig{
 		JwtSecret: jwtSecret,
-		DB:        db,
+		DB:        queries,
 	}
 
 	// Setup routes
@@ -62,6 +66,7 @@ func main() {
 		filePath := cwd + "/frontend/templates/index.html"
 		http.ServeFile(w, r, filePath)
 	})
+	mux.Handle("POST /create-account", handler.CreateUserHandler(apiCfg.DB))
 
 	// Start server
 	srv := http.Server{

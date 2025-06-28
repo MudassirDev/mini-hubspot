@@ -1,47 +1,66 @@
 package auth
 
 import (
-	"github.com/golang-jwt/jwt/v5"
+	"errors"
 	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
-type CustomClaims struct {
-	UserID string `json:"user_id"`
-	Role   string `json:"role"`
-	Plan   string `json:"plan"`
-	jwt.RegisteredClaims
-}
+const (
+	ISSUER = "tool"
+)
 
-func CreateJWT(userID, role, plan, jwtSecret string, expiry time.Duration) (string, error) {
-	claims := CustomClaims{
-		UserID: userID,
-		Role:   role,
-		Plan:   plan,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expiry)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-		},
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(jwtSecret)
-}
-
-func VerifyJWT(tokenStr, jwtSecret string) (*CustomClaims, error) {
-	token, err := jwt.ParseWithClaims(tokenStr, &CustomClaims{}, func(token *jwt.Token) (any, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, jwt.ErrSignatureInvalid
-		}
-		return []byte(jwtSecret), nil
-	})
+func HashPassword(pass string) (string, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
+	return string(hash), nil
+}
 
-	claims, ok := token.Claims.(*CustomClaims)
-	if !ok || !token.Valid {
-		return nil, jwt.ErrTokenInvalidClaims
+func VerifyPassword(passwordString, hashString string) error {
+	return bcrypt.CompareHashAndPassword([]byte(hashString), []byte(passwordString))
+}
+
+func MakeJWT(userID uuid.UUID, expiresIn time.Duration, secretKey string) (string, error) {
+	signature := []byte(secretKey)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
+		Issuer:    ISSUER,
+		IssuedAt:  jwt.NewNumericDate(time.Now().UTC()),
+		ExpiresAt: jwt.NewNumericDate(time.Now().UTC().Add(expiresIn)),
+		Subject:   userID.String(),
+	})
+	return token.SignedString(signature)
+}
+
+func VerifyJWT(tokenString, tokenSecret string) (uuid.UUID, error) {
+	claims := jwt.RegisteredClaims{}
+	token, err := jwt.ParseWithClaims(tokenString, &claims, func(t *jwt.Token) (any, error) {
+		return []byte(tokenSecret), nil
+	})
+	if !token.Valid {
+		return uuid.Nil, errors.New("invalid token")
 	}
-
-	return claims, nil
+	if err != nil {
+		return uuid.Nil, err
+	}
+	uid, err := token.Claims.GetSubject()
+	if err != nil {
+		return uuid.Nil, err
+	}
+	issuer, err := token.Claims.GetIssuer()
+	if err != nil {
+		return uuid.Nil, err
+	}
+	if issuer != ISSUER {
+		return uuid.Nil, errors.New("invalid issuer")
+	}
+	userId, err := uuid.Parse(uid)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	return userId, nil
 }

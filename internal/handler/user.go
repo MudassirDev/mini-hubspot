@@ -5,34 +5,43 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/MudassirDev/mini-hubspot/internal/auth"
 	"github.com/MudassirDev/mini-hubspot/internal/database"
 )
 
+func writeJSONError(w http.ResponseWriter, status int, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(map[string]string{
+		"error": message,
+	})
+}
+
 func CreateUserHandler(db *database.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Only POST method is allowed", http.StatusMethodNotAllowed)
+			writeJSONError(w, http.StatusMethodNotAllowed, "Only POST method is allowed")
 			return
 		}
 
 		var req CreateUserRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid JSON input", http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "Invalid JSON input")
 			return
 		}
 
 		req.Email = strings.ToLower(strings.TrimSpace(req.Email))
 		req.Username = strings.ToLower(strings.TrimSpace(req.Username))
 		if req.Email == "" || req.Password == "" || req.Username == "" {
-			http.Error(w, "Missing required fields", http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "Missing required fields: email, username or password")
 			return
 		}
 
 		hashedPassword, err := auth.HashPassword(req.Password)
 		if err != nil {
-			http.Error(w, "Failed to hash password", http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to hash password")
 			return
 		}
 
@@ -45,9 +54,8 @@ func CreateUserHandler(db *database.Queries) http.HandlerFunc {
 			Role:         "user",
 			Plan:         "free",
 		})
-
 		if err != nil {
-			http.Error(w, "Error creating user: "+err.Error(), http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Error creating user: "+err.Error())
 			return
 		}
 
@@ -60,6 +68,66 @@ func CreateUserHandler(db *database.Queries) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(resp)
+	}
+}
+
+func LoginHandler(db *database.Queries, jwtSecret string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			writeJSONError(w, http.StatusMethodNotAllowed, "Only POST method is allowed")
+			return
+		}
+
+		var req LoginRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeJSONError(w, http.StatusBadRequest, "Invalid JSON input")
+			return
+		}
+
+		req.Email = strings.ToLower(strings.TrimSpace(req.Email))
+		if req.Email == "" || req.Password == "" {
+			writeJSONError(w, http.StatusBadRequest, "Email and password are required")
+			return
+		}
+
+		user, err := db.GetUserByEmail(context.Background(), req.Email)
+		if err != nil {
+			writeJSONError(w, http.StatusUnauthorized, "Invalid credentials")
+			return
+		}
+
+		if err := auth.VerifyPassword(req.Password, user.PasswordHash); err != nil {
+			writeJSONError(w, http.StatusUnauthorized, "Invalid credentials")
+			return
+		}
+
+		token, err := auth.MakeJWT(user.ID, 7*24*time.Hour, jwtSecret)
+		if err != nil {
+			writeJSONError(w, http.StatusInternalServerError, "Failed to generate token")
+			return
+		}
+
+		// Set JWT as an HTTP-only cookie
+		http.SetCookie(w, &http.Cookie{
+			Name:     "auth_token",
+			Value:    token,
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   false, // set to true if using HTTPS
+			SameSite: http.SameSiteStrictMode,
+			MaxAge:   int((7 * 24 * time.Hour).Seconds()),
+		})
+
+		// Respond with basic user info (but no token)
+		resp := LoginResponse{
+			ID:    user.ID.String(),
+			Email: user.Email,
+			Plan:  user.Plan,
+			Role:  user.Role,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(resp)
 	}
 }

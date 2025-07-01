@@ -67,6 +67,7 @@ func main() {
 		http.ServeFile(w, r, filePath)
 	})
 	mux.Handle("POST /create-account", handler.CreateUserHandler(apiCfg.DB))
+	mux.Handle("POST /login", handler.LoginHandler(apiCfg.DB, apiCfg.JwtSecret))
 
 	// Start server
 	srv := http.Server{

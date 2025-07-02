@@ -10,6 +10,7 @@ import (
 
 	"github.com/MudassirDev/mini-hubspot/internal/database"
 	"github.com/MudassirDev/mini-hubspot/internal/handler"
+	"github.com/MudassirDev/mini-hubspot/internal/middleware"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
@@ -68,6 +69,12 @@ func main() {
 	})
 	mux.Handle("POST /create-account", handler.CreateUserHandler(apiCfg.DB))
 	mux.Handle("POST /login", handler.LoginHandler(apiCfg.DB, apiCfg.JwtSecret))
+	// Contacts routes (auth required)
+	mux.Handle("GET /contacts", middleware.AuthMiddleware(apiCfg.DB, apiCfg.JwtSecret)(handler.GetContactsHandler(apiCfg.DB)))
+	mux.Handle("POST /contacts", middleware.AuthMiddleware(apiCfg.DB, apiCfg.JwtSecret)(handler.CreateContactHandler(apiCfg.DB)))
+	mux.Handle("GET /contacts/{id}", middleware.AuthMiddleware(apiCfg.DB, apiCfg.JwtSecret)(handler.GetContactByIDHandler(apiCfg.DB)))
+	mux.Handle("PUT /contacts/{id}", middleware.AuthMiddleware(apiCfg.DB, apiCfg.JwtSecret)(handler.UpdateContactHandler(apiCfg.DB)))
+	mux.Handle("DELETE /contacts/{id}", middleware.AuthMiddleware(apiCfg.DB, apiCfg.JwtSecret)(handler.DeleteContactHandler(apiCfg.DB)))
 
 	// Start server
 	srv := http.Server{

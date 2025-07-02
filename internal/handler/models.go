@@ -25,5 +25,13 @@ type LoginResponse struct {
 	Email string `json:"email"`
 	Plan  string `json:"plan"`
 	Role  string `json:"role"`
-	Token string `json:"token"`
+}
+
+type CreateContactRequest struct {
+	Name     string `json:"name"`
+	Email    string `json:"email,omitempty"`
+	Phone    string `json:"phone,omitempty"`
+	Company  string `json:"company,omitempty"`
+	Position string `json:"position,omitempty"`
+	Notes    string `json:"notes,omitempty"`
 }

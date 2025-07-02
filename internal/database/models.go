@@ -5,10 +5,24 @@
 package database
 
 import (
+	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+type Contact struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	Name      string
+	Email     sql.NullString
+	Phone     sql.NullString
+	Company   sql.NullString
+	Position  sql.NullString
+	Notes     sql.NullString
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
 
 type User struct {
 	ID            uuid.UUID

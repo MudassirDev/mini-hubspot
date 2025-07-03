@@ -8,11 +8,14 @@ import (
 	"os"
 	"strings"
 
-	"github.com/MudassirDev/mini-hubspot/internal/database"
-	"github.com/MudassirDev/mini-hubspot/internal/handler"
-	"github.com/MudassirDev/mini-hubspot/internal/middleware"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+
+	"github.com/MudassirDev/mini-hubspot/internal/database"
+	appHandler "github.com/MudassirDev/mini-hubspot/internal/handler"
+	appMiddleware "github.com/MudassirDev/mini-hubspot/internal/middleware"
 )
 
 type APIConfig struct {
@@ -21,67 +24,71 @@ type APIConfig struct {
 }
 
 func main() {
-	// Load env
-	err := godotenv.Load()
-	if err != nil {
-		log.Println("Warning: .env file not found, falling back to system env")
+	// Load .env
+	if err := godotenv.Load(); err != nil {
+		log.Println("Warning: .env file not found, using system env")
 	}
 
-	// Get env vars
 	port := ":" + os.Getenv("PORT")
 	jwtSecret := os.Getenv("JWT_SECRET")
 	dbConnString := os.Getenv("DATABASE_URL")
-	if !strings.Contains(dbConnString, "sslmode=") {
+	if dbConnString == "" {
+		log.Fatal("DATABASE_URL not set")
+	}
+	if jwtSecret == "" {
+		log.Fatal("JWT_SECRET not set")
+	}
+	if !strings.Contains(dbConnString, "?sslmode=disable") {
 		dbConnString += "?sslmode=disable"
 	}
 
-	// Connect to DB
+	// DB connection
 	db, err := sql.Open("postgres", dbConnString)
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		log.Fatal("DB connection error:", err)
 	}
 	defer db.Close()
 
-	// Optional: Ping DB to test connection
 	if err := db.Ping(); err != nil {
-		log.Fatal("Database is unreachable:", err)
+		log.Fatal("Database unreachable:", err)
 	}
 
 	queries := database.New(db)
-
-	// Create config for handlers
 	apiCfg := APIConfig{
 		JwtSecret: jwtSecret,
 		DB:        queries,
 	}
 
-	// Setup routes
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		cwd, err := os.Getwd()
-		if err != nil {
-			http.Error(w, "Failed to get working directory", http.StatusInternalServerError)
-			return
-		}
+	// Setup router
+	r := chi.NewRouter()
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
 
-		filePath := cwd + "/frontend/templates/index.html"
-		http.ServeFile(w, r, filePath)
+	// Serve frontend
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "frontend/templates/index.html")
 	})
-	mux.Handle("POST /create-account", handler.CreateUserHandler(apiCfg.DB))
-	mux.Handle("POST /login", handler.LoginHandler(apiCfg.DB, apiCfg.JwtSecret))
-	// Contacts routes (auth required)
-	mux.Handle("GET /contacts", middleware.AuthMiddleware(apiCfg.DB, apiCfg.JwtSecret)(handler.GetContactsHandler(apiCfg.DB)))
-	mux.Handle("POST /contacts", middleware.AuthMiddleware(apiCfg.DB, apiCfg.JwtSecret)(handler.CreateContactHandler(apiCfg.DB)))
-	mux.Handle("GET /contacts/{id}", middleware.AuthMiddleware(apiCfg.DB, apiCfg.JwtSecret)(handler.GetContactByIDHandler(apiCfg.DB)))
-	mux.Handle("PUT /contacts/{id}", middleware.AuthMiddleware(apiCfg.DB, apiCfg.JwtSecret)(handler.UpdateContactHandler(apiCfg.DB)))
-	mux.Handle("DELETE /contacts/{id}", middleware.AuthMiddleware(apiCfg.DB, apiCfg.JwtSecret)(handler.DeleteContactHandler(apiCfg.DB)))
 
-	// Start server
-	srv := http.Server{
-		Addr:    port,
-		Handler: mux,
-	}
+	// Public auth routes
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.AllowContentType("application/json"))
+		r.Post("/create-account", appHandler.CreateUserHandler(apiCfg.DB))
+		r.Post("/login", appHandler.LoginHandler(apiCfg.DB, apiCfg.JwtSecret))
+	})
 
-	fmt.Printf("Server is listening on http://localhost%v\n", port)
-	log.Fatal(srv.ListenAndServe())
+	// Authenticated contacts routes
+	r.Group(func(r chi.Router) {
+		r.Use(appMiddleware.AuthMiddleware(apiCfg.DB, apiCfg.JwtSecret))
+
+		r.Route("/contacts", func(r chi.Router) {
+			r.Get("/", appHandler.GetContactsHandler(apiCfg.DB))
+			r.Post("/", appHandler.CreateContactHandler(apiCfg.DB))
+			r.Get("/{id}", appHandler.GetContactByIDHandler(apiCfg.DB))
+			r.Patch("/{id}", appHandler.UpdateContactHandler(apiCfg.DB))
+			r.Delete("/{id}", appHandler.DeleteContactHandler(apiCfg.DB))
+		})
+	})
+
+	fmt.Printf("Server is running on http://localhost%v\n", port)
+	log.Fatal(http.ListenAndServe(port, r))
 }

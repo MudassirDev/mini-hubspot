@@ -1,5 +1,11 @@
 package handler
 
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
+
 type CreateUserRequest struct {
 	Username  string `json:"username"`
 	Email     string `json:"email"`
@@ -34,4 +40,26 @@ type CreateContactRequest struct {
 	Company  string `json:"company,omitempty"`
 	Position string `json:"position,omitempty"`
 	Notes    string `json:"notes,omitempty"`
+}
+
+type ContactResponse struct {
+	Name      string    `json:"name"`
+	Email     string    `json:"email"`
+	Phone     string    `json:"phone"`
+	Company   string    `json:"company"`
+	Position  string    `json:"position"`
+	Notes     string    `json:"notes"`
+	UserID    uuid.UUID `json:"user_id"`
+	ID        uuid.UUID `json:"contact_id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type PatchContactRequest struct {
+	Name     *string `json:"name,omitempty"`
+	Email    *string `json:"email,omitempty"`
+	Phone    *string `json:"phone,omitempty"`
+	Company  *string `json:"company,omitempty"`
+	Position *string `json:"position,omitempty"`
+	Notes    *string `json:"notes,omitempty"`
 }

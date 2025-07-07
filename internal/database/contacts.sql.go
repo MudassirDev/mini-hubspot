@@ -145,6 +145,7 @@ FROM contacts
 WHERE user_id = $1
   AND id > $2
   AND (
+    $3::text IS NULL OR
     name ILIKE '%' || $3 || '%' OR
     email ILIKE '%' || $3 || '%' OR
     phone ILIKE '%' || $3 || '%'
@@ -156,7 +157,7 @@ LIMIT $4
 type GetContactsPaginatedParams struct {
 	UserID uuid.UUID
 	After  int64
-	Search sql.NullString
+	Search string
 	Limit  int32
 }
 

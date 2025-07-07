@@ -110,7 +110,7 @@ func GetContactsHandler(db *database.Queries) http.HandlerFunc {
 			UserID: user.ID,
 			After:  after,
 			Limit:  int32(limit),
-			Search: ToNullString(search),
+			Search: search,
 		})
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, "Could not fetch contacts")

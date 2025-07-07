@@ -36,6 +36,7 @@ FROM contacts
 WHERE user_id = sqlc.arg('user_id')
   AND id > sqlc.arg('after')
   AND (
+    sqlc.arg('search')::text IS NULL OR
     name ILIKE '%' || sqlc.arg('search') || '%' OR
     email ILIKE '%' || sqlc.arg('search') || '%' OR
     phone ILIKE '%' || sqlc.arg('search') || '%'

@@ -40,6 +40,11 @@ func ToNullString(s string) sql.NullString {
 	return sql.NullString{String: s, Valid: s != ""}
 }
 
+func parseBoolQuery(val string) bool {
+	b, err := strconv.ParseBool(val)
+	return err == nil && b
+}
+
 func CreateContactHandler(db *database.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := middleware.GetUserFromContext(r.Context())
@@ -106,11 +111,20 @@ func GetContactsHandler(db *database.Queries) http.HandlerFunc {
 		}
 		search := query.Get("search")
 
+		requireNonEmptyCompany := parseBoolQuery(query.Get("require_non_empty_company"))
+		requireNonEmptyPhone := parseBoolQuery(query.Get("require_non_empty_phone"))
+		requireNonEmptyEmail := parseBoolQuery(query.Get("require_non_empty_email"))
+		requireNonEmptyPosition := parseBoolQuery(query.Get("require_non_empty_position"))
+
 		contacts, err := db.GetContactsPaginated(r.Context(), database.GetContactsPaginatedParams{
-			UserID: user.ID,
-			After:  after,
-			Limit:  int32(limit),
-			Search: search,
+			UserID:                  user.ID,
+			After:                   after,
+			Limit:                   int32(limit),
+			Search:                  search,
+			RequireNonEmptyCompany:  requireNonEmptyCompany,
+			RequireNonEmptyPhone:    requireNonEmptyPhone,
+			RequireNonEmptyEmail:    requireNonEmptyEmail,
+			RequireNonEmptyPosition: requireNonEmptyPosition,
 		})
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, "Could not fetch contacts")

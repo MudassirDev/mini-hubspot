@@ -41,5 +41,17 @@ WHERE user_id = sqlc.arg('user_id')
     email ILIKE '%' || sqlc.arg('search') || '%' OR
     phone ILIKE '%' || sqlc.arg('search') || '%'
   )
+  AND (
+    NOT sqlc.arg('require_non_empty_phone')::bool OR (phone IS NOT NULL AND phone <> '')
+  )
+  AND (
+    NOT sqlc.arg('require_non_empty_company')::bool OR (company IS NOT NULL AND company <> '')
+  )
+  AND (
+    NOT sqlc.arg('require_non_empty_position')::bool OR (position IS NOT NULL AND position <> '')
+  )
+  AND (
+    NOT sqlc.arg('require_non_empty_email')::bool OR (email IS NOT NULL AND email <> '')
+  )
 ORDER BY id
 LIMIT sqlc.arg('limit');

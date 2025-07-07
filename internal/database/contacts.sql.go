@@ -150,15 +150,31 @@ WHERE user_id = $1
     email ILIKE '%' || $3 || '%' OR
     phone ILIKE '%' || $3 || '%'
   )
+  AND (
+    NOT $4::bool OR (phone IS NOT NULL AND phone <> '')
+  )
+  AND (
+    NOT $5::bool OR (company IS NOT NULL AND company <> '')
+  )
+  AND (
+    NOT $6::bool OR (position IS NOT NULL AND position <> '')
+  )
+  AND (
+    NOT $7::bool OR (email IS NOT NULL AND email <> '')
+  )
 ORDER BY id
-LIMIT $4
+LIMIT $8
 `
 
 type GetContactsPaginatedParams struct {
-	UserID uuid.UUID
-	After  int64
-	Search string
-	Limit  int32
+	UserID                  uuid.UUID
+	After                   int64
+	Search                  string
+	RequireNonEmptyPhone    bool
+	RequireNonEmptyCompany  bool
+	RequireNonEmptyPosition bool
+	RequireNonEmptyEmail    bool
+	Limit                   int32
 }
 
 func (q *Queries) GetContactsPaginated(ctx context.Context, arg GetContactsPaginatedParams) ([]Contact, error) {
@@ -166,6 +182,10 @@ func (q *Queries) GetContactsPaginated(ctx context.Context, arg GetContactsPagin
 		arg.UserID,
 		arg.After,
 		arg.Search,
+		arg.RequireNonEmptyPhone,
+		arg.RequireNonEmptyCompany,
+		arg.RequireNonEmptyPosition,
+		arg.RequireNonEmptyEmail,
 		arg.Limit,
 	)
 	if err != nil {

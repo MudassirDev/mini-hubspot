@@ -106,9 +106,9 @@ func GetContactsHandler(db *database.Queries) http.HandlerFunc {
 		}
 
 		contacts, err := db.GetContactsPaginated(r.Context(), database.GetContactsPaginatedParams{
-			UserID:  user.ID,
-			Column2: after,
-			Limit:   int32(limit),
+			UserID: user.ID,
+			After:  after,
+			Limit:  int32(limit),
 		})
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, "Could not fetch contacts")

@@ -143,19 +143,19 @@ const getContactsPaginated = `-- name: GetContactsPaginated :many
 SELECT id, user_id, name, email, phone, company, position, notes, created_at, updated_at
 FROM contacts
 WHERE user_id = $1
-  AND ($2::bigint IS NULL OR id > $2)
+  AND id > $2
 ORDER BY id
 LIMIT $3
 `
 
 type GetContactsPaginatedParams struct {
-	UserID  uuid.UUID
-	Column2 int64
-	Limit   int32
+	UserID uuid.UUID
+	After  int64
+	Limit  int32
 }
 
 func (q *Queries) GetContactsPaginated(ctx context.Context, arg GetContactsPaginatedParams) ([]Contact, error) {
-	rows, err := q.db.QueryContext(ctx, getContactsPaginated, arg.UserID, arg.Column2, arg.Limit)
+	rows, err := q.db.QueryContext(ctx, getContactsPaginated, arg.UserID, arg.After, arg.Limit)
 	if err != nil {
 		return nil, err
 	}

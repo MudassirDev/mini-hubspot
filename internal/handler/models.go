@@ -50,7 +50,7 @@ type ContactResponse struct {
 	Position  string    `json:"position"`
 	Notes     string    `json:"notes"`
 	UserID    uuid.UUID `json:"user_id"`
-	ID        uuid.UUID `json:"contact_id"`
+	ID        int64     `json:"contact_id"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

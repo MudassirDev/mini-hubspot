@@ -30,3 +30,10 @@ RETURNING *;
 DELETE FROM contacts
 WHERE id = $1 AND user_id = $2;
 
+-- name: GetContactsPaginated :many
+SELECT *
+FROM contacts
+WHERE user_id = $1
+  AND ($2::bigint IS NULL OR id > $2)
+ORDER BY id
+LIMIT $3;

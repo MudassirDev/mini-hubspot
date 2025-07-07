@@ -1,15 +1,14 @@
 package handler
 
 import (
-	"context"
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/MudassirDev/mini-hubspot/internal/database"
 	"github.com/MudassirDev/mini-hubspot/internal/middleware"
-	"github.com/google/uuid"
 )
 
 type UpdateContactRequest = CreateContactRequest
@@ -61,7 +60,7 @@ func CreateContactHandler(db *database.Queries) http.HandlerFunc {
 			return
 		}
 
-		contact, err := db.CreateContact(context.Background(), database.CreateContactParams{
+		contact, err := db.CreateContact(r.Context(), database.CreateContactParams{
 			UserID:   user.ID,
 			Name:     req.Name,
 			Email:    ToNullString(req.Email),
@@ -75,6 +74,7 @@ func CreateContactHandler(db *database.Queries) http.HandlerFunc {
 			return
 		}
 
+		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(NewContactResponse(contact))
 	}
 }
@@ -87,13 +87,49 @@ func GetContactsHandler(db *database.Queries) http.HandlerFunc {
 			return
 		}
 
-		contacts, err := db.GetContactsByUser(r.Context(), user.ID)
+		query := r.URL.Query()
+
+		// Parse limit
+		limitStr := query.Get("limit")
+		limit, err := strconv.Atoi(limitStr)
+		if err != nil || limit <= 0 {
+			limit = 20
+		}
+
+		// Parse cursor (after ID)
+		afterStr := query.Get("after")
+		var after int64
+		if afterStr != "" {
+			if afterID, err := strconv.ParseInt(afterStr, 10, 64); err == nil {
+				after = afterID
+			}
+		}
+
+		contacts, err := db.GetContactsPaginated(r.Context(), database.GetContactsPaginatedParams{
+			UserID:  user.ID,
+			Column2: after,
+			Limit:   int32(limit),
+		})
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, "Could not fetch contacts")
 			return
 		}
 
-		json.NewEncoder(w).Encode(NewContactResponseList(contacts))
+		// Determine next cursor
+		var nextCursor *int64
+		if len(contacts) == int(limit) {
+			last := contacts[len(contacts)-1]
+			nextCursor = &last.ID
+		}
+
+		// Build response
+		resp := map[string]any{
+			"contacts":    NewContactResponseList(contacts),
+			"next_cursor": nextCursor,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
 	}
 }
 
@@ -106,7 +142,7 @@ func GetContactByIDHandler(db *database.Queries) http.HandlerFunc {
 		}
 
 		idStr := r.PathValue("id")
-		contactID, err := uuid.Parse(idStr)
+		contactID, err := strconv.ParseInt(idStr, 10, 64)
 		if err != nil {
 			writeJSONError(w, http.StatusBadRequest, "Invalid contact ID")
 			return
@@ -121,6 +157,7 @@ func GetContactByIDHandler(db *database.Queries) http.HandlerFunc {
 			return
 		}
 
+		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(NewContactResponse(contact))
 	}
 }
@@ -134,7 +171,7 @@ func UpdateContactHandler(db *database.Queries) http.HandlerFunc {
 		}
 
 		idStr := r.PathValue("id")
-		contactID, err := uuid.Parse(idStr)
+		contactID, err := strconv.ParseInt(idStr, 10, 64)
 		if err != nil {
 			writeJSONError(w, http.StatusBadRequest, "Invalid contact ID")
 			return
@@ -185,6 +222,7 @@ func UpdateContactHandler(db *database.Queries) http.HandlerFunc {
 			return
 		}
 
+		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(NewContactResponse(updated))
 	}
 }
@@ -198,7 +236,7 @@ func DeleteContactHandler(db *database.Queries) http.HandlerFunc {
 		}
 
 		idStr := r.PathValue("id")
-		contactID, err := uuid.Parse(idStr)
+		contactID, err := strconv.ParseInt(idStr, 10, 64)
 		if err != nil {
 			writeJSONError(w, http.StatusBadRequest, "Invalid contact ID")
 			return

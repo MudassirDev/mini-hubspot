@@ -62,7 +62,7 @@ WHERE id = $1 AND user_id = $2
 `
 
 type DeleteContactParams struct {
-	ID     uuid.UUID
+	ID     int64
 	UserID uuid.UUID
 }
 
@@ -77,7 +77,7 @@ WHERE id = $1 AND user_id = $2
 `
 
 type GetContactByIDParams struct {
-	ID     uuid.UUID
+	ID     int64
 	UserID uuid.UUID
 }
 
@@ -139,6 +139,55 @@ func (q *Queries) GetContactsByUser(ctx context.Context, userID uuid.UUID) ([]Co
 	return items, nil
 }
 
+const getContactsPaginated = `-- name: GetContactsPaginated :many
+SELECT id, user_id, name, email, phone, company, position, notes, created_at, updated_at
+FROM contacts
+WHERE user_id = $1
+  AND ($2::bigint IS NULL OR id > $2)
+ORDER BY id
+LIMIT $3
+`
+
+type GetContactsPaginatedParams struct {
+	UserID  uuid.UUID
+	Column2 int64
+	Limit   int32
+}
+
+func (q *Queries) GetContactsPaginated(ctx context.Context, arg GetContactsPaginatedParams) ([]Contact, error) {
+	rows, err := q.db.QueryContext(ctx, getContactsPaginated, arg.UserID, arg.Column2, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Contact
+	for rows.Next() {
+		var i Contact
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Name,
+			&i.Email,
+			&i.Phone,
+			&i.Company,
+			&i.Position,
+			&i.Notes,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateContact = `-- name: UpdateContact :one
 UPDATE contacts
 SET name = $3,
@@ -153,7 +202,7 @@ RETURNING id, user_id, name, email, phone, company, position, notes, created_at,
 `
 
 type UpdateContactParams struct {
-	ID       uuid.UUID
+	ID       int64
 	UserID   uuid.UUID
 	Name     string
 	Email    sql.NullString

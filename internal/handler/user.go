@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -21,11 +20,6 @@ func writeJSONError(w http.ResponseWriter, status int, message string) {
 
 func CreateUserHandler(db *database.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			writeJSONError(w, http.StatusMethodNotAllowed, "Only POST method is allowed")
-			return
-		}
-
 		var req CreateUserRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeJSONError(w, http.StatusBadRequest, "Invalid JSON input")
@@ -45,7 +39,7 @@ func CreateUserHandler(db *database.Queries) http.HandlerFunc {
 			return
 		}
 
-		user, err := db.CreateUser(context.Background(), database.CreateUserParams{
+		user, err := db.CreateUser(r.Context(), database.CreateUserParams{
 			Username:     req.Username,
 			Email:        req.Email,
 			FirstName:    req.FirstName,
@@ -72,13 +66,8 @@ func CreateUserHandler(db *database.Queries) http.HandlerFunc {
 	}
 }
 
-func LoginHandler(db *database.Queries, jwtSecret string) http.HandlerFunc {
+func LoginHandler(db *database.Queries, jwtSecret string, expiresIn time.Duration) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			writeJSONError(w, http.StatusMethodNotAllowed, "Only POST method is allowed")
-			return
-		}
-
 		var req LoginRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeJSONError(w, http.StatusBadRequest, "Invalid JSON input")
@@ -91,7 +80,7 @@ func LoginHandler(db *database.Queries, jwtSecret string) http.HandlerFunc {
 			return
 		}
 
-		user, err := db.GetUserByEmail(context.Background(), req.Email)
+		user, err := db.GetUserByEmail(r.Context(), req.Email)
 		if err != nil {
 			writeJSONError(w, http.StatusUnauthorized, "Invalid credentials")
 			return
@@ -102,7 +91,7 @@ func LoginHandler(db *database.Queries, jwtSecret string) http.HandlerFunc {
 			return
 		}
 
-		token, err := auth.MakeJWT(user.ID, 7*24*time.Hour, jwtSecret)
+		token, err := auth.MakeJWT(user.ID, expiresIn, jwtSecret)
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, "Failed to generate token")
 			return
@@ -116,7 +105,7 @@ func LoginHandler(db *database.Queries, jwtSecret string) http.HandlerFunc {
 			HttpOnly: true,
 			Secure:   false, // set to true if using HTTPS
 			SameSite: http.SameSiteStrictMode,
-			MaxAge:   int((7 * 24 * time.Hour).Seconds()),
+			MaxAge:   int((expiresIn).Seconds()),
 		})
 
 		// Respond with basic user info (but no token)

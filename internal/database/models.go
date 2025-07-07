@@ -12,7 +12,7 @@ import (
 )
 
 type Contact struct {
-	ID        uuid.UUID
+	ID        int64
 	UserID    uuid.UUID
 	Name      string
 	Email     sql.NullString

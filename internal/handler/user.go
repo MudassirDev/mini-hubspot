@@ -1,13 +1,18 @@
 package handler
 
 import (
+	"database/sql"
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/MudassirDev/mini-hubspot/internal/auth"
 	"github.com/MudassirDev/mini-hubspot/internal/database"
+	"github.com/MudassirDev/mini-hubspot/internal/email"
 )
 
 func writeJSONError(w http.ResponseWriter, status int, message string) {
@@ -18,7 +23,7 @@ func writeJSONError(w http.ResponseWriter, status int, message string) {
 	})
 }
 
-func CreateUserHandler(db *database.Queries) http.HandlerFunc {
+func CreateUserHandler(db *database.Queries, EmailSender email.MailtrapEmailSender) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req CreateUserRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -39,17 +44,36 @@ func CreateUserHandler(db *database.Queries) http.HandlerFunc {
 			return
 		}
 
+		token, err := auth.GenerateVerificationToken()
+		if err != nil {
+			writeJSONError(w, http.StatusInternalServerError, "Failed to generate token")
+			return
+		}
+
+		tokenSentAt := time.Now()
+
 		user, err := db.CreateUser(r.Context(), database.CreateUserParams{
-			Username:     req.Username,
-			Email:        req.Email,
-			FirstName:    req.FirstName,
-			LastName:     req.LastName,
-			PasswordHash: hashedPassword,
-			Role:         "user",
-			Plan:         "free",
+			Username:          req.Username,
+			Email:             req.Email,
+			FirstName:         req.FirstName,
+			LastName:          req.LastName,
+			PasswordHash:      hashedPassword,
+			Role:              "user",
+			Plan:              "free",
+			VerificationToken: sql.NullString{String: token, Valid: true},
+			TokenSentAt:       sql.NullTime{Time: tokenSentAt, Valid: true},
 		})
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, "Error creating user: "+err.Error())
+			return
+		}
+
+		verifyLink := fmt.Sprintf("%s/verify-email?token=%s", os.Getenv("APP_HOST"), token)
+
+		err = EmailSender.SendVerificationEmail(req.Email, req.FirstName, verifyLink)
+		if err != nil {
+			log.Println("failed to send verification email:", err)
+			writeJSONError(w, http.StatusInternalServerError, "Could not send verification email")
 			return
 		}
 
@@ -118,5 +142,40 @@ func LoginHandler(db *database.Queries, jwtSecret string, expiresIn time.Duratio
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(resp)
+	}
+}
+
+func VerifyEmailHandler(db *database.Queries) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		token := r.URL.Query().Get("token")
+		if token == "" {
+			writeJSONError(w, http.StatusBadRequest, "Missing token")
+			return
+		}
+
+		user, err := db.GetUserByVerificationToken(r.Context(), sql.NullString{String: token, Valid: true})
+		if err != nil {
+			writeJSONError(w, http.StatusBadRequest, "Invalid or expired token")
+			return
+		}
+
+		if user.EmailVerified {
+			json.NewEncoder(w).Encode(map[string]string{"message": "Email already verified"})
+			return
+		}
+
+		// Optional: ensure token is not older than 30 days
+		if user.TokenSentAt.Valid && time.Since(user.TokenSentAt.Time) > 30*24*time.Hour {
+			writeJSONError(w, http.StatusBadRequest, "Token expired")
+			return
+		}
+
+		err = db.VerifyUserEmail(r.Context(), user.ID)
+		if err != nil {
+			writeJSONError(w, http.StatusInternalServerError, "Could not verify email")
+			return
+		}
+
+		json.NewEncoder(w).Encode(map[string]string{"message": "Email verified successfully"})
 	}
 }

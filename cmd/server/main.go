@@ -18,13 +18,15 @@ import (
 
 	"github.com/MudassirDev/mini-hubspot/internal/cron"
 	"github.com/MudassirDev/mini-hubspot/internal/database"
+	"github.com/MudassirDev/mini-hubspot/internal/email"
 	appHandler "github.com/MudassirDev/mini-hubspot/internal/handler"
 	appMiddleware "github.com/MudassirDev/mini-hubspot/internal/middleware"
 )
 
 type APIConfig struct {
-	JwtSecret string
-	JwtExpiry time.Duration
+	JwtSecret   string
+	JwtExpiry   time.Duration
+	EmailSender *email.MailtrapEmailSender
 }
 
 func main() {
@@ -59,8 +61,9 @@ func main() {
 
 	queries := database.New(db)
 	apiCfg := APIConfig{
-		JwtSecret: jwtSecret,
-		JwtExpiry: 1 * time.Hour,
+		JwtSecret:   jwtSecret,
+		JwtExpiry:   1 * time.Hour,
+		EmailSender: email.NewMailtrapSender(),
 	}
 	cron.StartCronJobs(queries)
 
@@ -119,11 +122,12 @@ func service(apiCfg APIConfig, queries *database.Queries) http.Handler {
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, cwd+"/frontend/templates/index.html")
 	})
+	r.Get("/verify-email", appHandler.VerifyEmailHandler(queries))
 
 	// Public auth routes
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.AllowContentType("application/json"))
-		r.Post("/create-account", appHandler.CreateUserHandler(queries))
+		r.Post("/create-account", appHandler.CreateUserHandler(queries, *apiCfg.EmailSender))
 		r.Post("/login", appHandler.LoginHandler(queries, apiCfg.JwtSecret, apiCfg.JwtExpiry))
 	})
 

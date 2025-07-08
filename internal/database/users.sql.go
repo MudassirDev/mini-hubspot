@@ -7,6 +7,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 )
@@ -19,20 +20,24 @@ INSERT INTO users (
     last_name,
     password_hash,
     role,
-    plan
+    plan,
+    verification_token,
+    token_sent_at
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 RETURNING id, username, email, first_name, last_name, password_hash, email_verified, role, plan, verification_token, token_sent_at, created_at, updated_at
 `
 
 type CreateUserParams struct {
-	Username     string
-	Email        string
-	FirstName    string
-	LastName     string
-	PasswordHash string
-	Role         string
-	Plan         string
+	Username          string
+	Email             string
+	FirstName         string
+	LastName          string
+	PasswordHash      string
+	Role              string
+	Plan              string
+	VerificationToken sql.NullString
+	TokenSentAt       sql.NullTime
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
@@ -44,6 +49,8 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		arg.PasswordHash,
 		arg.Role,
 		arg.Plan,
+		arg.VerificationToken,
+		arg.TokenSentAt,
 	)
 	var i User
 	err := row.Scan(
@@ -67,7 +74,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 const deleteExpiredUnverifiedUsers = `-- name: DeleteExpiredUnverifiedUsers :exec
 DELETE FROM users
 WHERE email_verified = false
-  AND token_sent_at < NOW() - INTERVAL '24 hours'
+  AND token_sent_at < NOW() - INTERVAL '30 days'
 `
 
 func (q *Queries) DeleteExpiredUnverifiedUsers(ctx context.Context) error {
@@ -125,4 +132,44 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const getUserByVerificationToken = `-- name: GetUserByVerificationToken :one
+SELECT id, username, email, first_name, last_name, password_hash, email_verified, role, plan, verification_token, token_sent_at, created_at, updated_at FROM users
+WHERE verification_token = $1
+`
+
+func (q *Queries) GetUserByVerificationToken(ctx context.Context, verificationToken sql.NullString) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByVerificationToken, verificationToken)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.FirstName,
+		&i.LastName,
+		&i.PasswordHash,
+		&i.EmailVerified,
+		&i.Role,
+		&i.Plan,
+		&i.VerificationToken,
+		&i.TokenSentAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const verifyUserEmail = `-- name: VerifyUserEmail :exec
+UPDATE users
+SET email_verified = true,
+    verification_token = NULL,
+    token_sent_at = NULL,
+    updated_at = NOW()
+WHERE id = $1
+`
+
+func (q *Queries) VerifyUserEmail(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, verifyUserEmail, id)
+	return err
 }

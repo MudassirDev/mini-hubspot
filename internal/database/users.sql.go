@@ -22,7 +22,7 @@ INSERT INTO users (
     plan
 )
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, username, email, first_name, last_name, password_hash, email_verified, role, plan, created_at, updated_at
+RETURNING id, username, email, first_name, last_name, password_hash, email_verified, role, plan, verification_token, token_sent_at, created_at, updated_at
 `
 
 type CreateUserParams struct {
@@ -56,14 +56,27 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.EmailVerified,
 		&i.Role,
 		&i.Plan,
+		&i.VerificationToken,
+		&i.TokenSentAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
+const deleteExpiredUnverifiedUsers = `-- name: DeleteExpiredUnverifiedUsers :exec
+DELETE FROM users
+WHERE email_verified = false
+  AND token_sent_at < NOW() - INTERVAL '24 hours'
+`
+
+func (q *Queries) DeleteExpiredUnverifiedUsers(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, deleteExpiredUnverifiedUsers)
+	return err
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, username, email, first_name, last_name, password_hash, email_verified, role, plan, created_at, updated_at FROM users
+SELECT id, username, email, first_name, last_name, password_hash, email_verified, role, plan, verification_token, token_sent_at, created_at, updated_at FROM users
 WHERE email = $1
 LIMIT 1
 `
@@ -81,6 +94,8 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.EmailVerified,
 		&i.Role,
 		&i.Plan,
+		&i.VerificationToken,
+		&i.TokenSentAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -88,7 +103,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, email, first_name, last_name, password_hash, email_verified, role, plan, created_at, updated_at FROM users WHERE id = $1
+SELECT id, username, email, first_name, last_name, password_hash, email_verified, role, plan, verification_token, token_sent_at, created_at, updated_at FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
@@ -104,6 +119,8 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.EmailVerified,
 		&i.Role,
 		&i.Plan,
+		&i.VerificationToken,
+		&i.TokenSentAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

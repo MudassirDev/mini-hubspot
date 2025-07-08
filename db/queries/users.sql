@@ -18,3 +18,8 @@ LIMIT 1;
 
 -- name: GetUserByID :one
 SELECT * FROM users WHERE id = $1;
+
+-- name: DeleteExpiredUnverifiedUsers :exec
+DELETE FROM users
+WHERE email_verified = false
+  AND token_sent_at < NOW() - INTERVAL '24 hours';

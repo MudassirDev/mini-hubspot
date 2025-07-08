@@ -16,6 +16,7 @@ import (
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 
+	"github.com/MudassirDev/mini-hubspot/internal/cron"
 	"github.com/MudassirDev/mini-hubspot/internal/database"
 	appHandler "github.com/MudassirDev/mini-hubspot/internal/handler"
 	appMiddleware "github.com/MudassirDev/mini-hubspot/internal/middleware"
@@ -61,6 +62,7 @@ func main() {
 		JwtSecret: jwtSecret,
 		JwtExpiry: 1 * time.Hour,
 	}
+	cron.StartCronJobs(queries)
 
 	// The HTTP Server
 	server := &http.Server{Addr: port, Handler: service(apiCfg, queries)}

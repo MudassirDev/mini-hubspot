@@ -25,15 +25,17 @@ type Contact struct {
 }
 
 type User struct {
-	ID            uuid.UUID
-	Username      string
-	Email         string
-	FirstName     string
-	LastName      string
-	PasswordHash  string
-	EmailVerified bool
-	Role          string
-	Plan          string
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	ID                uuid.UUID
+	Username          string
+	Email             string
+	FirstName         string
+	LastName          string
+	PasswordHash      string
+	EmailVerified     bool
+	Role              string
+	Plan              string
+	VerificationToken sql.NullString
+	TokenSentAt       sql.NullTime
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 }

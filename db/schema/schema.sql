@@ -14,6 +14,9 @@ CREATE TABLE users (
     role TEXT NOT NULL DEFAULT 'user',
     plan TEXT NOT NULL DEFAULT 'free',
 
+    verification_token TEXT,
+    token_sent_at TIMESTAMPTZ,
+
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

@@ -45,17 +45,3 @@ func AuthMiddleware(db *database.Queries, jwtSecret string) func(http.Handler) h
 		})
 	}
 }
-
-// RequireRole ensures user has a certain role
-func RequireRole(role string) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			user, ok := GetUserFromContext(r.Context())
-			if !ok || user.Role != role {
-				http.Error(w, "Forbidden: insufficient permissions", http.StatusForbidden)
-				return
-			}
-			next.ServeHTTP(w, r)
-		})
-	}
-}

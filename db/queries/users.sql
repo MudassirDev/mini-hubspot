@@ -37,3 +37,8 @@ SET email_verified = true,
     token_sent_at = NULL,
     updated_at = NOW()
 WHERE id = $1;
+
+-- name: UpgradeUserPlanByEmail :exec
+UPDATE users
+SET plan = 'pro', updated_at = NOW()
+WHERE email = $1;

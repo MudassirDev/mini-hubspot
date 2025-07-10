@@ -160,6 +160,17 @@ func (q *Queries) GetUserByVerificationToken(ctx context.Context, verificationTo
 	return i, err
 }
 
+const upgradeUserPlanByEmail = `-- name: UpgradeUserPlanByEmail :exec
+UPDATE users
+SET plan = 'pro', updated_at = NOW()
+WHERE email = $1
+`
+
+func (q *Queries) UpgradeUserPlanByEmail(ctx context.Context, email string) error {
+	_, err := q.db.ExecContext(ctx, upgradeUserPlanByEmail, email)
+	return err
+}
+
 const verifyUserEmail = `-- name: VerifyUserEmail :exec
 UPDATE users
 SET email_verified = true,

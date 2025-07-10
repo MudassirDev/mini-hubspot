@@ -123,6 +123,7 @@ func service(apiCfg APIConfig, queries *database.Queries) http.Handler {
 		http.ServeFile(w, r, cwd+"/frontend/templates/index.html")
 	})
 	r.Get("/verify-email", appHandler.VerifyEmailHandler(queries))
+	r.Post("/webhook/stripe", appHandler.StripeWebhookHandler(queries))
 
 	// Public auth routes
 	r.Group(func(r chi.Router) {

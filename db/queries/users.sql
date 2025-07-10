@@ -38,7 +38,11 @@ SET email_verified = true,
     updated_at = NOW()
 WHERE id = $1;
 
+-- name: UpdateStripeCustomerIDByEmail :exec
+UPDATE users SET stripe_customer_id = $2 WHERE email = $1;
+
 -- name: UpgradeUserPlanByEmail :exec
-UPDATE users
-SET plan = 'pro', updated_at = NOW()
-WHERE email = $1;
+UPDATE users SET plan = 'pro' WHERE email = $1;
+
+-- name: DowngradeUserPlanByStripeCustomerID :exec
+UPDATE users SET plan = 'free' WHERE stripe_customer_id = $1;

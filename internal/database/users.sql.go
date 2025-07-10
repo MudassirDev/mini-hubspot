@@ -25,7 +25,7 @@ INSERT INTO users (
     token_sent_at
 )
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, username, email, first_name, last_name, password_hash, email_verified, role, plan, verification_token, token_sent_at, created_at, updated_at
+RETURNING id, username, email, first_name, last_name, password_hash, email_verified, role, plan, verification_token, token_sent_at, stripe_customer_id, created_at, updated_at
 `
 
 type CreateUserParams struct {
@@ -65,6 +65,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Plan,
 		&i.VerificationToken,
 		&i.TokenSentAt,
+		&i.StripeCustomerID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -82,8 +83,17 @@ func (q *Queries) DeleteExpiredUnverifiedUsers(ctx context.Context) error {
 	return err
 }
 
+const downgradeUserPlanByStripeCustomerID = `-- name: DowngradeUserPlanByStripeCustomerID :exec
+UPDATE users SET plan = 'free' WHERE stripe_customer_id = $1
+`
+
+func (q *Queries) DowngradeUserPlanByStripeCustomerID(ctx context.Context, stripeCustomerID sql.NullString) error {
+	_, err := q.db.ExecContext(ctx, downgradeUserPlanByStripeCustomerID, stripeCustomerID)
+	return err
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, username, email, first_name, last_name, password_hash, email_verified, role, plan, verification_token, token_sent_at, created_at, updated_at FROM users
+SELECT id, username, email, first_name, last_name, password_hash, email_verified, role, plan, verification_token, token_sent_at, stripe_customer_id, created_at, updated_at FROM users
 WHERE email = $1
 LIMIT 1
 `
@@ -103,6 +113,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Plan,
 		&i.VerificationToken,
 		&i.TokenSentAt,
+		&i.StripeCustomerID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -110,7 +121,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, email, first_name, last_name, password_hash, email_verified, role, plan, verification_token, token_sent_at, created_at, updated_at FROM users WHERE id = $1
+SELECT id, username, email, first_name, last_name, password_hash, email_verified, role, plan, verification_token, token_sent_at, stripe_customer_id, created_at, updated_at FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
@@ -128,6 +139,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.Plan,
 		&i.VerificationToken,
 		&i.TokenSentAt,
+		&i.StripeCustomerID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -135,7 +147,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 }
 
 const getUserByVerificationToken = `-- name: GetUserByVerificationToken :one
-SELECT id, username, email, first_name, last_name, password_hash, email_verified, role, plan, verification_token, token_sent_at, created_at, updated_at FROM users
+SELECT id, username, email, first_name, last_name, password_hash, email_verified, role, plan, verification_token, token_sent_at, stripe_customer_id, created_at, updated_at FROM users
 WHERE verification_token = $1
 `
 
@@ -154,16 +166,29 @@ func (q *Queries) GetUserByVerificationToken(ctx context.Context, verificationTo
 		&i.Plan,
 		&i.VerificationToken,
 		&i.TokenSentAt,
+		&i.StripeCustomerID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
+const updateStripeCustomerIDByEmail = `-- name: UpdateStripeCustomerIDByEmail :exec
+UPDATE users SET stripe_customer_id = $2 WHERE email = $1
+`
+
+type UpdateStripeCustomerIDByEmailParams struct {
+	Email            string
+	StripeCustomerID sql.NullString
+}
+
+func (q *Queries) UpdateStripeCustomerIDByEmail(ctx context.Context, arg UpdateStripeCustomerIDByEmailParams) error {
+	_, err := q.db.ExecContext(ctx, updateStripeCustomerIDByEmail, arg.Email, arg.StripeCustomerID)
+	return err
+}
+
 const upgradeUserPlanByEmail = `-- name: UpgradeUserPlanByEmail :exec
-UPDATE users
-SET plan = 'pro', updated_at = NOW()
-WHERE email = $1
+UPDATE users SET plan = 'pro' WHERE email = $1
 `
 
 func (q *Queries) UpgradeUserPlanByEmail(ctx context.Context, email string) error {

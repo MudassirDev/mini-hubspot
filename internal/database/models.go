@@ -36,6 +36,7 @@ type User struct {
 	Plan              string
 	VerificationToken sql.NullString
 	TokenSentAt       sql.NullTime
+	StripeCustomerID  sql.NullString
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 }

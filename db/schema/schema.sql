@@ -17,6 +17,8 @@ CREATE TABLE users (
     verification_token TEXT,
     token_sent_at TIMESTAMPTZ,
 
+    stripe_customer_id TEXT,
+
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

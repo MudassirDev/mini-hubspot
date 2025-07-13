@@ -2,21 +2,36 @@
 <!DOCTYPE html>
 <html lang="en">
 
-    <head>
-        <meta charset="UTF-8">
-        <title>{{ .Title }}</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
+<head>
+    <meta charset="UTF-8">
+    <title>{{ .Title }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/css/pico.violet.min.css">
+    <link rel="shortcut icon" href="/static/images/human-resources.png" type="image/x-icon">
+    <style>
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+        }
 
-    <body>
-        {{ template "header" . }}
+        body>main.container {
+            flex: 1;
+        }
+    </style>
+</head>
 
-        <main>
-            {{ block "content" . }}{{ end }}
-        </main>
+<body>
+    {{ template "header" . }}
 
-        {{ template "footer" . }}
-    </body>
+    <main class="container">
+        {{ block "content" . }}{{ end }}
+    </main>
+
+    {{ template "footer" . }}
+</body>
 
 </html>
 {{ end }}

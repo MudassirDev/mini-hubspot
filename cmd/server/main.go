@@ -106,13 +106,18 @@ func service(apiCfg APIConfig, queries *database.Queries) http.Handler {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
+	cwd, _ := os.Getwd()
+	fs := http.StripPrefix("/static/", http.FileServer(http.Dir(cwd+"/frontend/static")))
+
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		RenderTemplate(w, "index", map[string]any{
 			"Title": "Home",
+			"Year":  time.Now().Year(),
 		})
 	})
 	r.Get("/verify-email", appHandler.VerifyEmailHandler(queries))
 	r.Post("/webhook/stripe", appHandler.StripeWebhookHandler(queries))
+	r.Mount("/static/", fs)
 
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.AllowContentType("application/json"))

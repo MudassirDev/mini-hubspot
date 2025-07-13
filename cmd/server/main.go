@@ -91,14 +91,14 @@ func main() {
 		serverStopCtx()
 	}()
 
-	log.Printf("🚀 Server starting on http://localhost%v", port)
+	log.Printf("Server starting on http://localhost%v", port)
 	err = server.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}
 
 	<-serverCtx.Done()
-	log.Println("🛑 Server shutdown gracefully.")
+	log.Println("Server shutdown gracefully.")
 }
 
 func service(apiCfg APIConfig, queries *database.Queries) http.Handler {
@@ -106,10 +106,10 @@ func service(apiCfg APIConfig, queries *database.Queries) http.Handler {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	cwd, _ := os.Getwd()
-
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, cwd+"/frontend/templates/index.html")
+		RenderTemplate(w, "index", map[string]any{
+			"Title": "Home",
+		})
 	})
 	r.Get("/verify-email", appHandler.VerifyEmailHandler(queries))
 	r.Post("/webhook/stripe", appHandler.StripeWebhookHandler(queries))

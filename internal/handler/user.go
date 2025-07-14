@@ -3,6 +3,7 @@ package handler
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"github.com/MudassirDev/mini-hubspot/internal/auth"
 	"github.com/MudassirDev/mini-hubspot/internal/database"
 	"github.com/MudassirDev/mini-hubspot/internal/email"
+	"github.com/lib/pq"
 )
 
 func writeJSONError(w http.ResponseWriter, status int, message string) {
@@ -64,7 +66,27 @@ func CreateUserHandler(db *database.Queries, EmailSender email.MailtrapEmailSend
 			TokenSentAt:       sql.NullTime{Time: tokenSentAt, Valid: true},
 		})
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, "Error creating user: "+err.Error())
+			var pqErr *pq.Error
+			if errors.As(err, &pqErr) {
+				switch pqErr.Code.Name() {
+				case "unique_violation":
+					if pqErr.Constraint == "users_email_key" {
+						writeJSONError(w, http.StatusBadRequest, "Email already in use")
+						return
+					}
+					if pqErr.Constraint == "users_username_key" {
+						writeJSONError(w, http.StatusBadRequest, "Username already taken")
+						return
+					}
+					writeJSONError(w, http.StatusBadRequest, "Duplicate field")
+					return
+				default:
+					writeJSONError(w, http.StatusBadRequest, "Database error: "+pqErr.Message)
+					return
+				}
+			}
+
+			writeJSONError(w, http.StatusInternalServerError, "Unexpected error: "+err.Error())
 			return
 		}
 
@@ -106,12 +128,20 @@ func LoginHandler(db *database.Queries, jwtSecret string, expiresIn time.Duratio
 
 		user, err := db.GetUserByEmail(r.Context(), req.Email)
 		if err != nil {
-			writeJSONError(w, http.StatusUnauthorized, "Invalid credentials")
+			// Check for sql.ErrNoRows specifically
+			if errors.Is(err, sql.ErrNoRows) {
+				writeJSONError(w, http.StatusUnauthorized, "User not found")
+				return
+			}
+
+			// Unexpected DB error
+			log.Printf("DB error during login: %v", err)
+			writeJSONError(w, http.StatusInternalServerError, "Internal server error")
 			return
 		}
 
 		if err := auth.VerifyPassword(req.Password, user.PasswordHash); err != nil {
-			writeJSONError(w, http.StatusUnauthorized, "Invalid credentials")
+			writeJSONError(w, http.StatusUnauthorized, "Invalid password")
 			return
 		}
 
@@ -177,5 +207,20 @@ func VerifyEmailHandler(db *database.Queries) http.HandlerFunc {
 		}
 
 		json.NewEncoder(w).Encode(map[string]string{"message": "Email verified successfully"})
+	}
+}
+
+func LogoutHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		http.SetCookie(w, &http.Cookie{
+			Name:     "auth_token",
+			Value:    "",
+			Path:     "/",
+			MaxAge:   -1,
+			HttpOnly: true,
+			Secure:   false,
+		})
+
+		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
 }

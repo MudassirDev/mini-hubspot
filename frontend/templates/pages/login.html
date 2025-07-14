@@ -1,0 +1,27 @@
+{{ define "content" }}
+
+<section id="content" data-page="login">
+  <h1>Login</h1>
+  <form id="login-form" method="POST" action="/login">
+    <label for="email">Email</label>
+    <input type="email" id="email" name="email" required placeholder="you@example.com" />
+
+    <label for="password">Password</label>
+    <input type="password" id="password" name="password" required placeholder="••••••••" />
+
+    <button type="submit">Login</button>
+  </form>
+
+  <p>Don't have an account? <a href="/signup">Create one</a></p>
+</section>
+
+<script>
+  document.querySelector(`form[action="/login"]`).addEventListener("submit", e => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const email = formData.get("email");
+    const password = formData.get("password");
+  })
+</script>
+
+{{ end }}

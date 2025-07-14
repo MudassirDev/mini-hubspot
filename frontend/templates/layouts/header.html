@@ -2,13 +2,19 @@
 <header class="container">
     <nav>
         <ul>
-            <li><strong>MiniHubspot</strong></li>
+            <li><a href="/" class="secondary"><strong>MiniHubspot</strong></a></li>
         </ul>
         <ul>
-            <li><a href="/">Home</a></li>
-            <li><a href="/contacts">Contacts</a></li>
-            <li><a href="/plans">Plans</a></li>
-            <li><a href="/logout">Logout</a></li>
+            {{ if .LoggedIn }}
+                <li><a href="/">Home</a></li>
+                <li><a href="/contacts">Contacts</a></li>
+                <li><a href="/plans">Plans</a></li>
+                <li><a href="/logout">Logout</a></li>
+            {{ else }}
+                <li><a href="/">Home</a></li>
+                <li><a href="/login">Login</a></li>
+                <li><a href="/signup">Sign Up</a></li>
+            {{ end }}
         </ul>
     </nav>
 </header>

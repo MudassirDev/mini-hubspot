@@ -10,37 +10,47 @@ import (
 
 type contextKey string
 
-const userContextKey = contextKey("user")
+const UserContextKey = contextKey("user")
 
 // GetUserFromContext retrieves user from context
 func GetUserFromContext(ctx context.Context) (*database.User, bool) {
-	user, ok := ctx.Value(userContextKey).(*database.User)
+	user, ok := ctx.Value(UserContextKey).(*database.User)
 	return user, ok
 }
 
 // AuthMiddleware verifies JWT from cookie and attaches user to context
-func AuthMiddleware(db *database.Queries, jwtSecret string) func(http.Handler) http.Handler {
+func AuthMiddleware(db *database.Queries, jwtSecret string, redirectOnFail bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			cookie, err := r.Cookie("auth_token")
 			if err != nil {
-				http.Error(w, "Unauthorized: missing token", http.StatusUnauthorized)
+				if redirectOnFail {
+					http.Redirect(w, r, "/login", http.StatusSeeOther)
+				}
+				// If not redirecting, just pass request as is
+				next.ServeHTTP(w, r)
 				return
 			}
 
 			userID, err := auth.VerifyJWT(cookie.Value, jwtSecret)
 			if err != nil {
-				http.Error(w, "Unauthorized: invalid token", http.StatusUnauthorized)
+				if redirectOnFail {
+					http.Redirect(w, r, "/login", http.StatusSeeOther)
+				}
+				next.ServeHTTP(w, r)
 				return
 			}
 
 			user, err := db.GetUserByID(r.Context(), userID)
 			if err != nil {
-				http.Error(w, "Unauthorized: user not found", http.StatusUnauthorized)
+				if redirectOnFail {
+					http.Redirect(w, r, "/login", http.StatusSeeOther)
+				}
+				next.ServeHTTP(w, r)
 				return
 			}
 
-			ctx := context.WithValue(r.Context(), userContextKey, &user)
+			ctx := context.WithValue(r.Context(), UserContextKey, &user)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

@@ -109,12 +109,34 @@ func service(apiCfg APIConfig, queries *database.Queries) http.Handler {
 	cwd, _ := os.Getwd()
 	fs := http.StripPrefix("/static/", http.FileServer(http.Dir(cwd+"/frontend/static")))
 
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		RenderTemplate(w, "index", map[string]any{
-			"Title": "Home",
-			"Year":  time.Now().Year(),
+	r.Group(func(r chi.Router) {
+		r.Use(appMiddleware.AuthMiddleware(queries, apiCfg.JwtSecret, false))
+		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+			loggedIn := false
+			if r.Context().Value(appMiddleware.UserContextKey) != nil {
+				loggedIn = true
+			}
+
+			RenderTemplate(w, "index", map[string]any{
+				"Title":    "Home",
+				"Year":     time.Now().Year(),
+				"LoggedIn": loggedIn,
+			})
+		})
+		r.Get("/login", func(w http.ResponseWriter, r *http.Request) {
+			RenderTemplate(w, "login", map[string]any{
+				"Title": "Login",
+				"Year":  time.Now().Year(),
+			})
+		})
+		r.Get("/signup", func(w http.ResponseWriter, r *http.Request) {
+			RenderTemplate(w, "signup", map[string]any{
+				"Title": "Sign Up",
+				"Year":  time.Now().Year(),
+			})
 		})
 	})
+	r.Get("/logout", appHandler.LogoutHandler())
 	r.Get("/verify-email", appHandler.VerifyEmailHandler(queries))
 	r.Post("/webhook/stripe", appHandler.StripeWebhookHandler(queries))
 	r.Mount("/static/", fs)
@@ -126,7 +148,7 @@ func service(apiCfg APIConfig, queries *database.Queries) http.Handler {
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Use(appMiddleware.AuthMiddleware(queries, apiCfg.JwtSecret))
+		r.Use(appMiddleware.AuthMiddleware(queries, apiCfg.JwtSecret, true))
 
 		r.Route("/contacts", func(r chi.Router) {
 			r.Get("/", appHandler.GetContactsHandler(queries))

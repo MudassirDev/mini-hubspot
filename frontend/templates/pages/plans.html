@@ -1,0 +1,60 @@
+{{ define "content" }}
+<main class="container">
+    <h2>Choose Your Plan</h2>
+
+    <table role="grid">
+        <thead>
+            <tr>
+                <th>Features</th>
+                <th>Free</th>
+                <th>Pro</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Contacts Limit</td>
+                <td>100</td>
+                <td>Unlimited</td>
+            </tr>
+            <tr>
+                <td>Export CSV</td>
+                <td><span>&#10006;</span></td>
+                <td><span>&#10004;</span></td>
+            </tr>
+            <tr>
+                <td>Support</td>
+                <td><span>&#10006;</span></td>
+                <td>Email support</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="grid" style="margin-top: 2rem;">
+        <div>
+            <h3>Free Plan</h3>
+            <p>Start managing contacts with essential features.</p>
+            {{ if .LoggedIn }}
+            {{ if eq .User.Plan "free" }}
+            <button disabled aria-disabled="true">Your Current Plan</button>
+            {{ end }}
+            {{ else }}
+            <a href="/signup" class="contrast outline">Get Started Free</a>
+            {{ end }}
+        </div>
+        <div>
+            <h3>Pro Plan</h3>
+            <p>Unlock all features for better productivity.</p>
+            {{ if .LoggedIn }}
+            {{ if eq .User.Plan "pro" }}
+            <button disabled aria-disabled="true">Pro Plan Active</button>
+            {{ else }}
+            <a target="_blank" href="https://buy.stripe.com/test_14AdRb6Wc9Q71iBaxL8Vi00" class="contrast">Upgrade to
+                Pro</a>
+            {{ end }}
+            {{ else }}
+            <a href="/signup" class="contrast">Upgrade to Pro</a>
+            {{ end }}
+        </div>
+    </div>
+</main>
+{{ end }}

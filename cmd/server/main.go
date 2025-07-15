@@ -111,6 +111,7 @@ func service(apiCfg APIConfig, queries *database.Queries) http.Handler {
 
 	r.Group(func(r chi.Router) {
 		r.Use(appMiddleware.AuthMiddleware(queries, apiCfg.JwtSecret, false))
+		var user *database.User
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			loggedIn := false
 			if r.Context().Value(appMiddleware.UserContextKey) != nil {
@@ -133,6 +134,19 @@ func service(apiCfg APIConfig, queries *database.Queries) http.Handler {
 			RenderTemplate(w, "signup", map[string]any{
 				"Title": "Sign Up",
 				"Year":  time.Now().Year(),
+			})
+		})
+		r.Get("/plans", func(w http.ResponseWriter, r *http.Request) {
+			loggedIn := false
+			if u, ok := appMiddleware.GetUserFromContext(r.Context()); ok {
+				user = u
+				loggedIn = true
+			}
+			RenderTemplate(w, "plans", map[string]any{
+				"Title":    "Plans",
+				"Year":     time.Now().Year(),
+				"LoggedIn": loggedIn,
+				"User":     user,
 			})
 		})
 	})

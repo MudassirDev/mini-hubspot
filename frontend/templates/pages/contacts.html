@@ -1,2 +1,68 @@
 {{ define "content" }}
+<main class="container-fluid" id="content" data-page="contacts">
+    <header>
+        <h1>Contacts</h1>
+        <div class="grid">
+            <div class="col-sm-6 col-md-4 col-lg-3">
+                <input type="search" id="contact-search" placeholder="Search contacts..."
+                    aria-label="Search contacts" />
+            </div>
+            <div class="col-sm-6 col-md-4 col-lg-3">
+                <select id="filter-field" aria-label="Filter contacts by field">
+                    <option value="">Filter by</option>
+                    <option value="email">Has Email</option>
+                    <option value="phone">Has Phone</option>
+                    <option value="company">Has Company</option>
+                    <option value="position">Has Position</option>
+                </select>
+            </div>
+            <div class="col-sm-12 col-md-4 col-lg-3 d-flex justify-content-end">
+                <button id="add-contact" class="outline small">+ Add Contact</button>
+            </div>
+        </div>
+    </header>
+
+    <hr />
+
+    <section>
+        <table id="contacts-table" class="striped">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Company</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </section>
+
+    <nav id="pagination-nav" class="d-flex justify-content-center align-items-center gap-1 mt-1">
+        <button id="prev-btn" class="secondary outline small">Previous</button>
+        <span id="page-number" class="text-small">Page 1</span>
+        <button id="next-btn" class="secondary outline small">Next</button>
+    </nav>
+
+    <dialog id="contact-modal">
+        <article>
+            <header>
+                <h3>New Contact</h3>
+            </header>
+            <form id="contact-form">
+                <label>Name<input type="text" name="name" required /></label>
+                <label>Email<input type="email" name="email" /></label>
+                <label>Phone<input type="tel" name="phone" /></label>
+                <label>Company<input type="text" name="company" /></label>
+                <label>Position<input type="text" name="position" /></label>
+                <label>Notes<textarea name="notes" rows="3"></textarea></label>
+                <footer>
+                    <button type="button" id="cancel-modal" class="secondary">Cancel</button>
+                    <button type="submit">Save</button>
+                </footer>
+            </form>
+        </article>
+    </dialog>
+</main>
 {{ end }}

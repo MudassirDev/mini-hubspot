@@ -151,8 +151,19 @@ func service(apiCfg APIConfig, queries *database.Queries) http.Handler {
 		r.Use(appMiddleware.AuthMiddleware(queries, apiCfg.JwtSecret, true))
 
 		r.Route("/contacts", func(r chi.Router) {
-			r.Get("/", appHandler.GetContactsHandler(queries))
-			r.Post("/", appHandler.CreateContactHandler(queries))
+			r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+				loggedIn := false
+				if r.Context().Value(appMiddleware.UserContextKey) != nil {
+					loggedIn = true
+				}
+				RenderTemplate(w, "contacts", map[string]any{
+					"Title":    "Contacts",
+					"Year":     time.Now().Year(),
+					"LoggedIn": loggedIn,
+				})
+			})
+			r.Get("/all", appHandler.GetContactsHandler(queries))
+			r.Post("/new", appHandler.CreateContactHandler(queries))
 			r.Get("/{id}", appHandler.GetContactByIDHandler(queries))
 			r.Patch("/{id}", appHandler.UpdateContactHandler(queries))
 			r.Delete("/{id}", appHandler.DeleteContactHandler(queries))

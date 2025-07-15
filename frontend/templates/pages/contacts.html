@@ -44,25 +44,6 @@
         <span id="page-number" class="text-small">Page 1</span>
         <button id="next-btn" class="secondary outline small">Next</button>
     </nav>
-
-    <dialog id="contact-modal">
-        <article>
-            <header>
-                <h3>New Contact</h3>
-            </header>
-            <form id="contact-form">
-                <label>Name<input type="text" name="name" required /></label>
-                <label>Email<input type="email" name="email" /></label>
-                <label>Phone<input type="tel" name="phone" /></label>
-                <label>Company<input type="text" name="company" /></label>
-                <label>Position<input type="text" name="position" /></label>
-                <label>Notes<textarea name="notes" rows="3"></textarea></label>
-                <footer>
-                    <button type="button" id="cancel-modal" class="secondary">Cancel</button>
-                    <button type="submit">Save</button>
-                </footer>
-            </form>
-        </article>
-    </dialog>
+    {{ template "contact_form_modal" . }}
 </main>
 {{ end }}

@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -178,7 +180,63 @@ func service(apiCfg APIConfig, queries *database.Queries) http.Handler {
 			})
 			r.Get("/all", appHandler.GetContactsHandler(queries))
 			r.Post("/new", appHandler.CreateContactHandler(queries))
-			r.Get("/{id}", appHandler.GetContactByIDHandler(queries))
+			r.Get("/{id}", func(w http.ResponseWriter, r *http.Request) {
+				user, ok := appMiddleware.GetUserFromContext(r.Context())
+				if !ok {
+					http.Redirect(w, r, "/login", http.StatusSeeOther)
+					return
+				}
+
+				idStr := chi.URLParam(r, "id")
+				contactID, err := strconv.ParseInt(idStr, 10, 64)
+				if err != nil {
+					RenderTemplate(w, "error", map[string]any{
+						"Title":      "Invalid Contact ID",
+						"Year":       time.Now().Year(),
+						"LoggedIn":   true,
+						"User":       user,
+						"Message":    "The contact ID provided is invalid. Please check the URL.",
+						"StatusCode": http.StatusBadRequest,
+					})
+					return
+				}
+
+				contact, err := queries.GetContactByID(r.Context(), database.GetContactByIDParams{
+					ID:     contactID,
+					UserID: user.ID,
+				})
+				if err != nil {
+					if err == sql.ErrNoRows {
+						RenderTemplate(w, "error", map[string]any{
+							"Title":      "Contact Not Found",
+							"Year":       time.Now().Year(),
+							"LoggedIn":   true,
+							"User":       user,
+							"Message":    "The contact you are looking for was not found or does not belong to your account.",
+							"StatusCode": http.StatusNotFound,
+						})
+						return
+					}
+					RenderTemplate(w, "error", map[string]any{
+						"Title":      "Server Error",
+						"Year":       time.Now().Year(),
+						"LoggedIn":   true,
+						"User":       user,
+						"Message":    fmt.Sprintf("An unexpected error occurred while fetching the contact: %v", err),
+						"StatusCode": http.StatusInternalServerError,
+					})
+					return
+				}
+
+				RenderTemplate(w, "contact", map[string]any{
+					"Title":    contact.Name,
+					"Year":     time.Now().Year(),
+					"LoggedIn": true,
+					"User":     user,
+					"Contact":  contact,
+					"IsEdit":   true,
+				})
+			})
 			r.Patch("/{id}", appHandler.UpdateContactHandler(queries))
 			r.Delete("/{id}", appHandler.DeleteContactHandler(queries))
 		})

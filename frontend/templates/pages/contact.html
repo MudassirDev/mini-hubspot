@@ -1,0 +1,50 @@
+{{ define "content" }}
+<main class="container" id="content" data-page="contact">
+    <nav aria-label="breadcrumb">
+        <ul>
+            <li><a href="/">Home</a></li>
+            <li><a href="/contacts">Contacts</a></li>
+            <li>{{ .Contact.Name }}</li>
+        </ul>
+    </nav>
+
+    <hgroup>
+        <h1>{{ .Contact.Name }}</h1>
+        <p>Details for {{ .Contact.Name }}</p>
+    </hgroup>
+
+    <div class="grid">
+        <article>
+            <header>
+                <h2>Contact Information</h2>
+            </header>
+            <p><strong>Email:</strong> {{ if .Contact.Email.Valid }}{{ .Contact.Email.String }}{{ else }}N/A{{ end }}
+            </p>
+            <p><strong>Phone:</strong> {{ if .Contact.Phone.Valid }}{{ .Contact.Phone.String }}{{ else }}N/A{{ end }}
+            </p>
+            <p><strong>Company:</strong> {{ if .Contact.Company.Valid }}{{ .Contact.Company.String }}{{ else }}N/A{{ end
+                }}</p>
+            <p><strong>Position:</strong> {{ if .Contact.Position.Valid }}{{ .Contact.Position.String }}{{ else }}N/A{{
+                end }}</p>
+            <footer>
+                <a href="#" id="add-contact" role="button" class="secondary outline">Edit Contact</a>
+                <button id="delete-contact" class="contrast outline" data-id="{{ .Contact.ID }}">Delete Contact</button>
+            </footer>
+        </article>
+
+        <article>
+            <header>
+                <h2>Notes</h2>
+            </header>
+            <p>{{ if .Contact.Notes.Valid }}{{ .Contact.Notes.String }}{{ else }}No notes available.{{ end }}</p>
+        </article>
+    </div>
+
+    <p class="text-right" style="margin-top: 2rem;">
+        <small>Created: {{ .Contact.CreatedAt.Format "Jan 2, 2006 at 3:04 PM" }}</small><br>
+        <small>Last Updated: {{ .Contact.UpdatedAt.Format "Jan 2, 2006 at 3:04 PM" }}</small>
+    </p>
+
+    {{ template "contact_form_modal" . }}
+</main>
+{{ end }}

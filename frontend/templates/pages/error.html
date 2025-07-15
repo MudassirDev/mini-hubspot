@@ -1,0 +1,22 @@
+{{ define "content" }}
+<main class="container">
+    <hgroup>
+        <h1>Oops! Something went wrong.</h1>
+        {{ if .Title }}
+        <h2>{{ .Title }}</h2>
+        {{ end }}
+    </hgroup>
+
+    {{ if .Message }}
+    <p>{{ .Message }}</p>
+    {{ else }}
+    <p>An unexpected error occurred. Please try again later.</p>
+    {{ end }}
+
+    {{ if .StatusCode }}
+    <p>Status Code: {{ .StatusCode }}</p>
+    {{ end }}
+
+    <p><a href="/" role="button">Go to Home</a></p>
+</main>
+{{ end }}

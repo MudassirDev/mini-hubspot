@@ -49,19 +49,19 @@ func CreateContactHandler(db *database.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := middleware.GetUserFromContext(r.Context())
 		if !ok {
-			writeJSONError(w, http.StatusUnauthorized, "Unauthorized")
+			WriteJSONError(w, http.StatusUnauthorized, "Unauthorized")
 			return
 		}
 
 		var req CreateContactRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeJSONError(w, http.StatusBadRequest, "Invalid JSON input")
+			WriteJSONError(w, http.StatusBadRequest, "Invalid JSON input")
 			return
 		}
 
 		req.Name = strings.TrimSpace(req.Name)
 		if req.Name == "" {
-			writeJSONError(w, http.StatusBadRequest, "Contact name is required")
+			WriteJSONError(w, http.StatusBadRequest, "Contact name is required")
 			return
 		}
 
@@ -75,7 +75,7 @@ func CreateContactHandler(db *database.Queries) http.HandlerFunc {
 			Notes:    ToNullString(req.Notes),
 		})
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, "Could not create contact")
+			WriteJSONError(w, http.StatusInternalServerError, "Could not create contact")
 			return
 		}
 
@@ -88,7 +88,7 @@ func GetContactsHandler(db *database.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := middleware.GetUserFromContext(r.Context())
 		if !ok {
-			writeJSONError(w, http.StatusUnauthorized, "Unauthorized")
+			WriteJSONError(w, http.StatusUnauthorized, "Unauthorized")
 			return
 		}
 
@@ -127,7 +127,7 @@ func GetContactsHandler(db *database.Queries) http.HandlerFunc {
 			RequireNonEmptyPosition: requireNonEmptyPosition,
 		})
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, "Could not fetch contacts")
+			WriteJSONError(w, http.StatusInternalServerError, "Could not fetch contacts")
 			return
 		}
 
@@ -149,53 +149,24 @@ func GetContactsHandler(db *database.Queries) http.HandlerFunc {
 	}
 }
 
-func GetContactByIDHandler(db *database.Queries) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		user, ok := middleware.GetUserFromContext(r.Context())
-		if !ok {
-			writeJSONError(w, http.StatusUnauthorized, "Unauthorized")
-			return
-		}
-
-		idStr := r.PathValue("id")
-		contactID, err := strconv.ParseInt(idStr, 10, 64)
-		if err != nil {
-			writeJSONError(w, http.StatusBadRequest, "Invalid contact ID")
-			return
-		}
-
-		contact, err := db.GetContactByID(r.Context(), database.GetContactByIDParams{
-			ID:     contactID,
-			UserID: user.ID,
-		})
-		if err != nil {
-			writeJSONError(w, http.StatusNotFound, "Contact not found")
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(NewContactResponse(contact))
-	}
-}
-
 func UpdateContactHandler(db *database.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := middleware.GetUserFromContext(r.Context())
 		if !ok {
-			writeJSONError(w, http.StatusUnauthorized, "Unauthorized")
+			WriteJSONError(w, http.StatusUnauthorized, "Unauthorized")
 			return
 		}
 
 		idStr := r.PathValue("id")
 		contactID, err := strconv.ParseInt(idStr, 10, 64)
 		if err != nil {
-			writeJSONError(w, http.StatusBadRequest, "Invalid contact ID")
+			WriteJSONError(w, http.StatusBadRequest, "Invalid contact ID")
 			return
 		}
 
 		var req PatchContactRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeJSONError(w, http.StatusBadRequest, "Invalid JSON input")
+			WriteJSONError(w, http.StatusBadRequest, "Invalid JSON input")
 			return
 		}
 
@@ -205,7 +176,7 @@ func UpdateContactHandler(db *database.Queries) http.HandlerFunc {
 			UserID: user.ID,
 		})
 		if err != nil {
-			writeJSONError(w, http.StatusNotFound, "Contact not found")
+			WriteJSONError(w, http.StatusNotFound, "Contact not found")
 			return
 		}
 
@@ -234,7 +205,7 @@ func UpdateContactHandler(db *database.Queries) http.HandlerFunc {
 			Notes:    choose(req.Notes, existing.Notes),
 		})
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, "Could not update contact")
+			WriteJSONError(w, http.StatusInternalServerError, "Could not update contact")
 			return
 		}
 
@@ -247,14 +218,14 @@ func DeleteContactHandler(db *database.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := middleware.GetUserFromContext(r.Context())
 		if !ok {
-			writeJSONError(w, http.StatusUnauthorized, "Unauthorized")
+			WriteJSONError(w, http.StatusUnauthorized, "Unauthorized")
 			return
 		}
 
 		idStr := r.PathValue("id")
 		contactID, err := strconv.ParseInt(idStr, 10, 64)
 		if err != nil {
-			writeJSONError(w, http.StatusBadRequest, "Invalid contact ID")
+			WriteJSONError(w, http.StatusBadRequest, "Invalid contact ID")
 			return
 		}
 
@@ -263,7 +234,7 @@ func DeleteContactHandler(db *database.Queries) http.HandlerFunc {
 			UserID: user.ID,
 		})
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, "Could not delete contact")
+			WriteJSONError(w, http.StatusInternalServerError, "Could not delete contact")
 			return
 		}
 

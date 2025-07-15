@@ -17,7 +17,7 @@ import (
 	"github.com/lib/pq"
 )
 
-func writeJSONError(w http.ResponseWriter, status int, message string) {
+func WriteJSONError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(map[string]string{
@@ -29,26 +29,26 @@ func CreateUserHandler(db *database.Queries, EmailSender email.MailtrapEmailSend
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req CreateUserRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeJSONError(w, http.StatusBadRequest, "Invalid JSON input")
+			WriteJSONError(w, http.StatusBadRequest, "Invalid JSON input")
 			return
 		}
 
 		req.Email = strings.ToLower(strings.TrimSpace(req.Email))
 		req.Username = strings.ToLower(strings.TrimSpace(req.Username))
 		if req.Email == "" || req.Password == "" || req.Username == "" {
-			writeJSONError(w, http.StatusBadRequest, "Missing required fields: email, username or password")
+			WriteJSONError(w, http.StatusBadRequest, "Missing required fields: email, username or password")
 			return
 		}
 
 		hashedPassword, err := auth.HashPassword(req.Password)
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, "Failed to hash password")
+			WriteJSONError(w, http.StatusInternalServerError, "Failed to hash password")
 			return
 		}
 
 		token, err := auth.GenerateVerificationToken()
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, "Failed to generate token")
+			WriteJSONError(w, http.StatusInternalServerError, "Failed to generate token")
 			return
 		}
 
@@ -71,22 +71,22 @@ func CreateUserHandler(db *database.Queries, EmailSender email.MailtrapEmailSend
 				switch pqErr.Code.Name() {
 				case "unique_violation":
 					if pqErr.Constraint == "users_email_key" {
-						writeJSONError(w, http.StatusBadRequest, "Email already in use")
+						WriteJSONError(w, http.StatusBadRequest, "Email already in use")
 						return
 					}
 					if pqErr.Constraint == "users_username_key" {
-						writeJSONError(w, http.StatusBadRequest, "Username already taken")
+						WriteJSONError(w, http.StatusBadRequest, "Username already taken")
 						return
 					}
-					writeJSONError(w, http.StatusBadRequest, "Duplicate field")
+					WriteJSONError(w, http.StatusBadRequest, "Duplicate field")
 					return
 				default:
-					writeJSONError(w, http.StatusBadRequest, "Database error: "+pqErr.Message)
+					WriteJSONError(w, http.StatusBadRequest, "Database error: "+pqErr.Message)
 					return
 				}
 			}
 
-			writeJSONError(w, http.StatusInternalServerError, "Unexpected error: "+err.Error())
+			WriteJSONError(w, http.StatusInternalServerError, "Unexpected error: "+err.Error())
 			return
 		}
 
@@ -95,7 +95,7 @@ func CreateUserHandler(db *database.Queries, EmailSender email.MailtrapEmailSend
 		err = EmailSender.SendVerificationEmail(req.Email, req.FirstName, verifyLink)
 		if err != nil {
 			log.Println("failed to send verification email:", err)
-			writeJSONError(w, http.StatusInternalServerError, "Could not send verification email")
+			WriteJSONError(w, http.StatusInternalServerError, "Could not send verification email")
 			return
 		}
 
@@ -116,13 +116,13 @@ func LoginHandler(db *database.Queries, jwtSecret string, expiresIn time.Duratio
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req LoginRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeJSONError(w, http.StatusBadRequest, "Invalid JSON input")
+			WriteJSONError(w, http.StatusBadRequest, "Invalid JSON input")
 			return
 		}
 
 		req.Email = strings.ToLower(strings.TrimSpace(req.Email))
 		if req.Email == "" || req.Password == "" {
-			writeJSONError(w, http.StatusBadRequest, "Email and password are required")
+			WriteJSONError(w, http.StatusBadRequest, "Email and password are required")
 			return
 		}
 
@@ -130,24 +130,24 @@ func LoginHandler(db *database.Queries, jwtSecret string, expiresIn time.Duratio
 		if err != nil {
 			// Check for sql.ErrNoRows specifically
 			if errors.Is(err, sql.ErrNoRows) {
-				writeJSONError(w, http.StatusUnauthorized, "User not found")
+				WriteJSONError(w, http.StatusUnauthorized, "User not found")
 				return
 			}
 
 			// Unexpected DB error
 			log.Printf("DB error during login: %v", err)
-			writeJSONError(w, http.StatusInternalServerError, "Internal server error")
+			WriteJSONError(w, http.StatusInternalServerError, "Internal server error")
 			return
 		}
 
 		if err := auth.VerifyPassword(req.Password, user.PasswordHash); err != nil {
-			writeJSONError(w, http.StatusUnauthorized, "Invalid password")
+			WriteJSONError(w, http.StatusUnauthorized, "Invalid password")
 			return
 		}
 
 		token, err := auth.MakeJWT(user.ID, expiresIn, jwtSecret)
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, "Failed to generate token")
+			WriteJSONError(w, http.StatusInternalServerError, "Failed to generate token")
 			return
 		}
 
@@ -179,13 +179,13 @@ func VerifyEmailHandler(db *database.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := r.URL.Query().Get("token")
 		if token == "" {
-			writeJSONError(w, http.StatusBadRequest, "Missing token")
+			WriteJSONError(w, http.StatusBadRequest, "Missing token")
 			return
 		}
 
 		user, err := db.GetUserByVerificationToken(r.Context(), sql.NullString{String: token, Valid: true})
 		if err != nil {
-			writeJSONError(w, http.StatusBadRequest, "Invalid or expired token")
+			WriteJSONError(w, http.StatusBadRequest, "Invalid or expired token")
 			return
 		}
 
@@ -196,13 +196,13 @@ func VerifyEmailHandler(db *database.Queries) http.HandlerFunc {
 
 		// Optional: ensure token is not older than 30 days
 		if user.TokenSentAt.Valid && time.Since(user.TokenSentAt.Time) > 30*24*time.Hour {
-			writeJSONError(w, http.StatusBadRequest, "Token expired")
+			WriteJSONError(w, http.StatusBadRequest, "Token expired")
 			return
 		}
 
 		err = db.VerifyUserEmail(r.Context(), user.ID)
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, "Could not verify email")
+			WriteJSONError(w, http.StatusInternalServerError, "Could not verify email")
 			return
 		}
 

@@ -1,15 +1,10 @@
-import { postJSON } from './api.js';
+import { ContactFormSetup } from './util.js';
 
 export function setupContacts() {
     let page = 1;
     let afterCursor = null;
     let searchTerm = '';
     let filterField = '';
-
-    const modal = document.querySelector("#contact-modal");
-    const openBtn = document.querySelector("#add-contact");
-    const closeBtn = document.querySelector("#cancel-modal");
-    const form = document.querySelector("#contact-form");
 
     const tableBody = document.querySelector("#contacts-table tbody");
     const searchInput = document.querySelector("#contact-search");
@@ -19,31 +14,9 @@ export function setupContacts() {
     const nextBtn = document.querySelector("#next-btn");
     const pageNumberEl = document.querySelector("#page-number");
 
-    const cursors = [null]; // Keep track of page cursors
+    const cursors = [null];
 
-    openBtn?.addEventListener("click", () => modal.showModal());
-    closeBtn?.addEventListener("click", () => modal.close());
-
-    form?.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const data = {
-            name: form.name.value,
-            email: form.email.value,
-            phone: form.phone.value,
-            company: form.company.value,
-            position: form.position.value,
-            notes: form.notes.value,
-        };
-
-        try {
-            await postJSON("/contacts/new", data);
-            modal.close();
-            form.reset();
-            await fetchContacts(); // reload contacts
-        } catch (err) {
-            alert("Error creating contact: " + err.message);
-        }
-    });
+    ContactFormSetup(fetchContacts);
 
     searchInput?.addEventListener("input", debounce(() => {
         searchTerm = searchInput.value.trim();

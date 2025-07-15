@@ -1,0 +1,41 @@
+{{ define "contact_form_modal" }}
+<dialog id="contact-modal">
+    <article>
+        <header>
+            {{ if .IsEdit }}
+            <h3 id="modal-title">Edit Contact</h3>
+            {{ else }}
+            <h3 id="modal-title">New Contact</h3>
+            {{ end }}
+        </header>
+        <form id="contact-form">
+            {{ if .IsEdit }}
+            <input type="hidden" name="id" value="{{ .Contact.ID }}" />
+            {{ end }}
+
+            <label>Name
+                <input type="text" name="name" required value="{{ if .IsEdit }}{{ .Contact.Name }}{{ end }}" />
+            </label>
+            <label>Email
+                <input type="email" name="email" value="{{ if .IsEdit }}{{ .Contact.Email.String }}{{ end }}" />
+            </label>
+            <label>Phone
+                <input type="tel" name="phone" value="{{ if .IsEdit }}{{ .Contact.Phone.String }}{{ end }}" />
+            </label>
+            <label>Company
+                <input type="text" name="company" value="{{ if .IsEdit }}{{ .Contact.Company.String }}{{ end }}" />
+            </label>
+            <label>Position
+                <input type="text" name="position" value="{{ if .IsEdit }}{{ .Contact.Position.String }}{{ end }}" />
+            </label>
+            <label>Notes
+                <textarea name="notes" rows="3">{{ if .IsEdit }}{{ .Contact.Notes.String }}{{ end }}</textarea>
+            </label>
+            <footer>
+                <button type="button" id="cancel-modal" class="secondary">Cancel</button>
+                <button type="submit">Save</button>
+            </footer>
+        </form>
+    </article>
+</dialog>
+{{ end }}

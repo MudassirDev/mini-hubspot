@@ -2,6 +2,7 @@ package handler
 
 import (
 	"database/sql"
+	"encoding/csv"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -50,6 +51,17 @@ func CreateContactHandler(db *database.Queries) http.HandlerFunc {
 		user, ok := middleware.GetUserFromContext(r.Context())
 		if !ok {
 			WriteJSONError(w, http.StatusUnauthorized, "Unauthorized")
+			return
+		}
+
+		count, err := db.CountContactsByUser(r.Context(), user.ID)
+		if err != nil {
+			WriteJSONError(w, http.StatusBadRequest, "Failed to fetch count")
+			return
+		}
+
+		if user.Plan == "free" && count >= 100 {
+			http.Error(w, "Contact limit reached. Upgrade to Pro.", http.StatusForbidden)
 			return
 		}
 
@@ -240,4 +252,53 @@ func DeleteContactHandler(db *database.Queries) http.HandlerFunc {
 
 		w.WriteHeader(http.StatusNoContent)
 	}
+}
+
+func ExportContactsCSVHandler(q *database.Queries) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := middleware.GetUserFromContext(r.Context())
+		if !ok {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		if user.Plan != "pro" {
+			http.Error(w, "CSV export is only available to Pro users", http.StatusForbidden)
+			return
+		}
+
+		contacts, err := q.GetContactsByUser(r.Context(), user.ID)
+		if err != nil {
+			http.Error(w, "Failed to fetch contacts", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/csv")
+		w.Header().Set("Content-Disposition", `attachment; filename="contacts.csv"`)
+
+		writer := csv.NewWriter(w)
+		defer writer.Flush()
+
+		// Write header
+		writer.Write([]string{"Name", "Email", "Phone", "Company", "Position", "Notes", "CreatedAt"})
+
+		for _, c := range contacts {
+			writer.Write([]string{
+				c.Name,
+				nullString(c.Email),
+				nullString(c.Phone),
+				nullString(c.Company),
+				nullString(c.Position),
+				nullString(c.Notes),
+				c.CreatedAt.Format("2006-01-02 15:04"),
+			})
+		}
+	}
+}
+
+func nullString(ns sql.NullString) string {
+	if ns.Valid {
+		return ns.String
+	}
+	return ""
 }

@@ -113,10 +113,10 @@ func service(apiCfg APIConfig, queries *database.Queries) http.Handler {
 
 	r.Group(func(r chi.Router) {
 		r.Use(appMiddleware.AuthMiddleware(queries, apiCfg.JwtSecret, false))
-		var user *database.User
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			loggedIn := false
-			if r.Context().Value(appMiddleware.UserContextKey) != nil {
+			user, ok := appMiddleware.GetUserFromContext(r.Context())
+			if ok {
 				loggedIn = true
 			}
 
@@ -124,6 +124,7 @@ func service(apiCfg APIConfig, queries *database.Queries) http.Handler {
 				"Title":    "Home",
 				"Year":     time.Now().Year(),
 				"LoggedIn": loggedIn,
+				"User":     user,
 			})
 		})
 		r.Get("/login", func(w http.ResponseWriter, r *http.Request) {
@@ -140,8 +141,8 @@ func service(apiCfg APIConfig, queries *database.Queries) http.Handler {
 		})
 		r.Get("/plans", func(w http.ResponseWriter, r *http.Request) {
 			loggedIn := false
-			if u, ok := appMiddleware.GetUserFromContext(r.Context()); ok {
-				user = u
+			user, ok := appMiddleware.GetUserFromContext(r.Context())
+			if ok {
 				loggedIn = true
 			}
 			RenderTemplate(w, "plans", map[string]any{
@@ -168,14 +169,16 @@ func service(apiCfg APIConfig, queries *database.Queries) http.Handler {
 
 		r.Route("/contacts", func(r chi.Router) {
 			r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-				loggedIn := false
-				if r.Context().Value(appMiddleware.UserContextKey) != nil {
-					loggedIn = true
+				user, ok := appMiddleware.GetUserFromContext(r.Context())
+				if !ok {
+					http.Redirect(w, r, "/login", http.StatusSeeOther)
+					return
 				}
 				RenderTemplate(w, "contacts", map[string]any{
 					"Title":    "Contacts",
 					"Year":     time.Now().Year(),
-					"LoggedIn": loggedIn,
+					"LoggedIn": true,
+					"User":     user,
 				})
 			})
 			r.Get("/all", appHandler.GetContactsHandler(queries))
@@ -239,6 +242,7 @@ func service(apiCfg APIConfig, queries *database.Queries) http.Handler {
 			})
 			r.Patch("/{id}", appHandler.UpdateContactHandler(queries))
 			r.Delete("/{id}", appHandler.DeleteContactHandler(queries))
+			r.Get("/export", appHandler.ExportContactsCSVHandler(queries))
 		})
 	})
 

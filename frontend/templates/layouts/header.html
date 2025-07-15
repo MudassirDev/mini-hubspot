@@ -10,6 +10,9 @@
             <li><a href="/contacts">Contacts</a></li>
             <li><a href="/plans">Plans</a></li>
             <li><a href="/logout">Logout</a></li>
+            {{ if eq .User.Plan "pro" }}
+            <li><a href="mailto:support@yourapp.com" class="secondary">Contact Support</a></li>
+            {{ end }}
             {{ else }}
             <li><a href="/">Home</a></li>
             <li><a href="/plans">Plans</a></li>

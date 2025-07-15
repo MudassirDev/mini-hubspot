@@ -12,6 +12,18 @@ import (
 	"github.com/google/uuid"
 )
 
+const countContactsByUser = `-- name: CountContactsByUser :one
+SELECT COUNT(*) FROM contacts
+WHERE user_id = $1
+`
+
+func (q *Queries) CountContactsByUser(ctx context.Context, userID uuid.UUID) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countContactsByUser, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createContact = `-- name: CreateContact :one
 INSERT INTO contacts (
     user_id, name, email, phone, company, position, notes
@@ -102,7 +114,6 @@ func (q *Queries) GetContactByID(ctx context.Context, arg GetContactByIDParams) 
 const getContactsByUser = `-- name: GetContactsByUser :many
 SELECT id, user_id, name, email, phone, company, position, notes, created_at, updated_at FROM contacts
 WHERE user_id = $1
-ORDER BY created_at DESC
 `
 
 func (q *Queries) GetContactsByUser(ctx context.Context, userID uuid.UUID) ([]Contact, error) {

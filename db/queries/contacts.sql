@@ -5,10 +5,13 @@ INSERT INTO contacts (
 VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
+-- name: CountContactsByUser :one
+SELECT COUNT(*) FROM contacts
+WHERE user_id = $1;
+
 -- name: GetContactsByUser :many
 SELECT * FROM contacts
-WHERE user_id = $1
-ORDER BY created_at DESC;
+WHERE user_id = $1;
 
 -- name: GetContactByID :one
 SELECT * FROM contacts

@@ -18,7 +18,6 @@ import (
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 
-	"github.com/MudassirDev/mini-hubspot/internal/cron"
 	"github.com/MudassirDev/mini-hubspot/internal/database"
 	"github.com/MudassirDev/mini-hubspot/internal/email"
 	appHandler "github.com/MudassirDev/mini-hubspot/internal/handler"
@@ -65,7 +64,6 @@ func main() {
 		JwtExpiry:   1 * time.Hour,
 		EmailSender: email.NewMailtrapSender(),
 	}
-	cron.StartCronJobs(queries)
 
 	server := &http.Server{Addr: port, Handler: service(apiCfg, queries)}
 

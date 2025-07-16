@@ -17,6 +17,10 @@ import (
 	"github.com/lib/pq"
 )
 
+func IsProduction() bool {
+	return os.Getenv("ENV") == "production"
+}
+
 func WriteJSONError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -151,14 +155,20 @@ func LoginHandler(db *database.Queries, jwtSecret string, expiresIn time.Duratio
 			return
 		}
 
+		secure := IsProduction()
+		sameSite := http.SameSiteStrictMode
+		if secure {
+			sameSite = http.SameSiteNoneMode
+		}
+
 		// Set JWT as an HTTP-only cookie
 		http.SetCookie(w, &http.Cookie{
 			Name:     "auth_token",
 			Value:    token,
 			Path:     "/",
 			HttpOnly: true,
-			Secure:   false, // set to true if using HTTPS
-			SameSite: http.SameSiteStrictMode,
+			Secure:   secure,
+			SameSite: sameSite,
 			MaxAge:   int((expiresIn).Seconds()),
 		})
 

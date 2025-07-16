@@ -20,7 +20,11 @@ RUN apk add --no-cache ca-certificates curl
 WORKDIR /app
 
 COPY --from=builder /app/tmp/main ./main
+
 COPY --from=builder /go/bin/goose ./goose
 COPY --from=builder /app/db/migrations ./db/migrations
+
+COPY --from=builder /app/frontend/templates ./frontend/templates
+COPY --from=builder /app/frontend/static ./frontend/static
 
 CMD ./goose -dir ./db/migrations postgres "$DATABASE_URL" up && ./main

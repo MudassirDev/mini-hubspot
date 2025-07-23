@@ -2,7 +2,9 @@
 <header class="container">
     <nav>
         <ul>
-            <li><a href="/" class="secondary"><strong>MiniHubspot</strong></a></li>
+            <li>
+                <a href="/" class="secondary"><strong>MiniHubspot</strong></a>
+            </li>
         </ul>
         <ul>
             {{ if .LoggedIn }}
@@ -11,9 +13,12 @@
             <li><a href="/plans">Plans</a></li>
             <li><a href="/logout">Logout</a></li>
             {{ if eq .User.Plan "pro" }}
-            <li><a href="mailto:support@yourapp.com" class="secondary">Contact Support</a></li>
-            {{ end }}
-            {{ else }}
+            <li>
+                <a href="mailto:mughalmudassir966@gmail.com" class="secondary"
+                    >Contact Support</a
+                >
+            </li>
+            {{ end }} {{ else }}
             <li><a href="/">Home</a></li>
             <li><a href="/plans">Plans</a></li>
             <li><a href="/login">Login</a></li>

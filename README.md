@@ -52,6 +52,10 @@ cd db/migrations && goose postgres $DATABASE_URL up
 - Declined: `4000000000000002`
 
 ---
+## Screenshots
+![Email Verification Screenshot](assets/images/email-verification.png)
+
+---
 
 ## Current Status
 ✅ Authentication & email verification  
